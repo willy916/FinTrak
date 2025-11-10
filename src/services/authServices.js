@@ -1,35 +1,29 @@
-
 import axiosInstance2 from "./axosInstance2";
-
 
 export const authService = {
   async requestOTP(numero) {
-    const response = await axiosInstance2.post("auth/login/request-otp", {
-    "login":numero
-    
-    })
+    try {
+      const response = await axiosInstance2.post("auth/login/request-otp", {
+        login: numero,
+      });
 
-    if (!response.ok) {
-      const error = await response.json();
-      console.log(error)
-      throw new Error(error.message || 'Erreur de connexion');
+      return response.data;
+    } catch (error) {
+      console.error("Erreur OTP :", error.response?.data || error.message);
+      throw error;
     }
-
-    return response.json();
   },
 
-  logout() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('isAuthenticated');
+  async verifyOTP(numero, code) {
+    try {
+      const response = await axiosInstance2.post("auth/login/verify-otp", {
+        login: numero,
+        code: code,
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Erreur vérification OTP :", error.response?.data || error.message);
+      throw error;
+    }
   },
-
-  isAuthenticated() {
-    return localStorage.getItem('isAuthenticated') === 'true';
-  },
-
-  getUser() {
-    const user = localStorage.getItem('user');
-    return user ? JSON.parse(user) : null;
-  }
 };

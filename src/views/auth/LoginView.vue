@@ -97,7 +97,7 @@ const handleCheckPhone = async () => {
     //   body: JSON.stringify({ telephone: telephone.value })
     // });
    console.log("reponse2")
-   const reponse = await authService.requestOTP(number);
+    const reponse = await authService.requestOTP(telephone.value);
     console.log("reponse", reponse)
 
   } catch (error) {
@@ -359,11 +359,11 @@ const handleBackToPin = () => {
 </script>
 
 <template>
-  <main class="min-h-screen bg-white font-sans text-gray-800">
+  <main class="min-h-screen font-sans text-gray-800 bg-white">
     <div class="flex flex-col md:flex-row">
       <!-- Image Panel - Carrousel -->
-      <div class="relative hidden md:block md:w-2/3 overflow-hidden bg-gray-900">
-        <div class="relative h-screen w-full">
+      <div class="relative hidden overflow-hidden bg-gray-900 md:block md:w-2/3">
+        <div class="relative w-full h-screen">
           <div
             v-for="(slide, index) in slides"
             :key="index"
@@ -375,15 +375,15 @@ const handleBackToPin = () => {
             <img
               :src="slide.image"
               alt="FinTrak Dashboard"
-              class="h-full w-full object-cover"
+              class="object-cover w-full h-full"
             />
             <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
           </div>
         </div>
 
-        <div class="absolute inset-0 flex flex-col justify-between p-12 text-white z-20">
+        <div class="absolute inset-0 z-20 flex flex-col justify-between p-12 text-white">
           <div class="flex items-center space-x-3">
-            <div class="flex items-center justify-center w-10 h-10 bg-primary-600 rounded-lg">
+            <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-primary-600">
               <img class="w-6 h-6" :src="logowf" alt="">
             </div>
             <span class="text-2xl font-bold text-white">FinTrak - MF</span>
@@ -424,7 +424,7 @@ const handleBackToPin = () => {
       </div>
 
       <!-- Login Form Panel -->
-      <div class="flex w-full items-center justify-center p-8 md:w-1/3">
+      <div class="flex items-center justify-center w-full p-8 md:w-1/3">
         <div class="w-full max-w-md">
           <!-- Étape 1: Saisie du numéro de téléphone -->
           <div v-if="step === 1">
@@ -433,9 +433,9 @@ const handleBackToPin = () => {
 
             <div 
               v-if="errorMessage" 
-              class="mt-6 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm flex items-start"
+              class="flex items-start p-3 mt-6 text-sm text-red-700 border border-red-200 rounded-lg bg-red-50"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" class="flex-shrink-0 w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               {{ errorMessage }}
@@ -446,9 +446,9 @@ const handleBackToPin = () => {
                 <label for="telephone" class="block text-sm font-medium text-gray-700">
                   Numéro de téléphone
                 </label>
-                <div class="mt-1 relative">
-                  <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div class="relative mt-1">
+                  <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                     </svg>
                   </div>
@@ -458,7 +458,7 @@ const handleBackToPin = () => {
                     type="tel"
                     placeholder="+225 XX XX XX XX XX"
                     required
-                    class="input-field pl-10"
+                    class="pl-10 input-field"
                   />
                 </div>
               </div>
@@ -469,7 +469,7 @@ const handleBackToPin = () => {
                   :disabled="isLoading"
                   class="btn-submit"
                 >
-                  <svg v-if="isLoading" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <svg v-if="isLoading" class="w-5 h-5 mr-3 -ml-1 text-white animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
@@ -478,8 +478,8 @@ const handleBackToPin = () => {
               </div>
             </form>
 
-            <div class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <p class="text-xs text-blue-700 font-medium mb-2">💡 Mode Test :</p>
+            <div class="p-4 mt-6 border border-blue-200 rounded-lg bg-blue-50">
+              <p class="mb-2 text-xs font-medium text-blue-700">💡 Mode Test :</p>
               <p class="text-xs text-blue-600">
                 • Numéro inscrit : <strong>+225 0123456789</strong><br>
                 • Autres numéros : Non-inscrits
@@ -491,17 +491,17 @@ const handleBackToPin = () => {
           <div v-if="step === 2">
             <button 
               @click="handleBackToPhone"
-              class="mb-4 flex items-center text-sm text-gray-600 hover:text-gray-900 transition-colors"
+              class="flex items-center mb-4 text-sm text-gray-600 transition-colors hover:text-gray-900"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
               </svg>
               Retour
             </button>
 
-            <div class="text-center mb-8">
-              <div class="inline-flex items-center justify-center w-16 h-16 bg-primary-100 rounded-full mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div class="mb-8 text-center">
+              <div class="inline-flex items-center justify-center w-16 h-16 mb-4 rounded-full bg-primary-100">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
               </div>
@@ -513,9 +513,9 @@ const handleBackToPin = () => {
 
             <div 
               v-if="errorMessage" 
-              class="mb-6 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm flex items-start"
+              class="flex items-start p-3 mb-6 text-sm text-red-700 border border-red-200 rounded-lg bg-red-50"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" class="flex-shrink-0 w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               {{ errorMessage }}
@@ -523,9 +523,9 @@ const handleBackToPin = () => {
 
             <div 
               v-if="successMessage" 
-              class="mb-6 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm flex items-start"
+              class="flex items-start p-3 mb-6 text-sm text-green-700 border border-green-200 rounded-lg bg-green-50"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" class="flex-shrink-0 w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               {{ successMessage }}
@@ -555,7 +555,7 @@ const handleBackToPin = () => {
                   :disabled="isLoading || pin.join('').length !== 4"
                   class="btn-submit"
                 >
-                  <svg v-if="isLoading" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <svg v-if="isLoading" class="w-5 h-5 mr-3 -ml-1 text-white animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
@@ -564,8 +564,8 @@ const handleBackToPin = () => {
               </div>
             </form>
 
-            <div class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <p class="text-xs text-blue-700 font-medium mb-2">💡 Mode Test :</p>
+            <div class="p-4 mt-6 border border-blue-200 rounded-lg bg-blue-50">
+              <p class="mb-2 text-xs font-medium text-blue-700">💡 Mode Test :</p>
               <p class="text-xs text-blue-600">
                 Code PIN : <strong>1234</strong><br>
                 Maximum 3 tentatives
@@ -577,9 +577,9 @@ const handleBackToPin = () => {
           <div v-if="step === 3">
             <button 
               @click="isRegistered ? handleBackToPin() : handleBackToPhone()"
-              class="mb-4 flex items-center text-sm text-gray-600 hover:text-gray-900 transition-colors"
+              class="flex items-center mb-4 text-sm text-gray-600 transition-colors hover:text-gray-900"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
               </svg>
               Retour
@@ -593,9 +593,9 @@ const handleBackToPin = () => {
 
             <div 
               v-if="errorMessage" 
-              class="mt-6 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm flex items-start"
+              class="flex items-start p-3 mt-6 text-sm text-red-700 border border-red-200 rounded-lg bg-red-50"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" class="flex-shrink-0 w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               {{ errorMessage }}
@@ -603,9 +603,9 @@ const handleBackToPin = () => {
 
             <div 
               v-if="successMessage" 
-              class="mt-6 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm flex items-start"
+              class="flex items-start p-3 mt-6 text-sm text-green-700 border border-green-200 rounded-lg bg-green-50"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" class="flex-shrink-0 w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               {{ successMessage }}
@@ -629,8 +629,8 @@ const handleBackToPin = () => {
                 />
               </div>
 
-              <div class="text-center mb-6">
-                <p class="text-sm text-gray-600 mb-2">
+              <div class="mb-6 text-center">
+                <p class="mb-2 text-sm text-gray-600">
                   Vous n'avez pas reçu le code ?
                 </p>
                 <button
@@ -650,7 +650,7 @@ const handleBackToPin = () => {
                   :disabled="isLoading || otp.join('').length !== 6"
                   class="btn-submit"
                 >
-                  <svg v-if="isLoading" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <svg v-if="isLoading" class="w-5 h-5 mr-3 -ml-1 text-white animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
@@ -659,8 +659,8 @@ const handleBackToPin = () => {
               </div>
             </form>
 
-            <div class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <p class="text-xs text-blue-700 font-medium mb-2">💡 Mode Test :</p>
+            <div class="p-4 mt-6 border border-blue-200 rounded-lg bg-blue-50">
+              <p class="mb-2 text-xs font-medium text-blue-700">💡 Mode Test :</p>
               <p class="text-xs text-blue-600">
                 Code OTP : <strong>123456</strong>
               </p>

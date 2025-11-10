@@ -8,6 +8,4 @@ const axiosInstance2 = axios.create({
    baseURL:  'http://194.163.184.208:6070/api/v1/'
 })
 
-
-
 export default axiosInstance2
