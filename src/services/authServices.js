@@ -26,4 +26,20 @@ export const authService = {
       throw error;
     }
   },
+
+  
+  logout() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('isAuthenticated');
+  },
+
+  isAuthenticated() {
+    return localStorage.getItem('isAuthenticated') === 'true';
+  },
+
+  getUser() {
+    const user = localStorage.getItem('user');
+    return user ? JSON.parse(user) : null;
+  }
 };
