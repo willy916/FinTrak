@@ -220,62 +220,13 @@
               </div>
 
               <!-- 2FA -->
-              <div class="flex items-start justify-between p-4 bg-gray-50 rounded-xl">
+              <div class="flex items-start justify-between p-4 bg-gray-50 rounded-xl mb-6">
                 <div class="flex-1">
                   <h4 class="text-sm font-semibold text-gray-900 mb-1">Authentification à deux facteurs</h4>
                   <p class="text-xs text-gray-500">Ajoutez une couche de sécurité supplémentaire à votre compte</p>
                 </div>
                 <label class="relative inline-flex items-center cursor-pointer">
                   <input v-model="security.twoFactorEnabled" type="checkbox" class="sr-only peer">
-                  <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-                </label>
-              </div>
-            </div>
-          </div>
-
-          <!-- Support Access -->
-          <div class="card">
-            <div v-if="isSectionLoading">
-              <!-- Support Skeleton -->
-              <div class="animate-pulse">
-                <div class="h-6 bg-gray-200 rounded w-32 mb-6"></div>
-
-                <div class="flex items-start justify-between p-4 bg-gray-100 rounded-xl mb-6">
-                  <div class="flex-1">
-                    <div class="h-4 bg-gray-200 rounded w-32 mb-2"></div>
-                    <div class="h-3 bg-gray-200 rounded w-64"></div>
-                  </div>
-                  <div class="w-11 h-6 bg-gray-200 rounded-full"></div>
-                </div>
-
-                <div class="flex items-center justify-between p-4 bg-gray-100 rounded-xl mb-6">
-                  <div class="flex-1">
-                    <div class="h-4 bg-gray-200 rounded w-48 mb-2"></div>
-                    <div class="h-3 bg-gray-200 rounded w-72"></div>
-                  </div>
-                  <div class="h-10 bg-gray-200 rounded-xl w-28"></div>
-                </div>
-
-                <div class="flex items-center justify-between p-4 bg-red-50 rounded-xl border border-red-100">
-                  <div class="flex-1">
-                    <div class="h-4 bg-red-200 rounded w-40 mb-2"></div>
-                    <div class="h-3 bg-red-200 rounded w-64"></div>
-                  </div>
-                  <div class="h-10 bg-red-200 rounded-xl w-24"></div>
-                </div>
-              </div>
-            </div>
-            <div v-else class="animate-fade-in">
-              <h3 class="text-xl font-bold text-gray-900 mb-6">Accès Support</h3>
-
-              <!-- Support Access Toggle -->
-              <div class="flex items-start justify-between p-4 bg-gray-50 rounded-xl mb-6">
-                <div class="flex-1">
-                  <h4 class="text-sm font-semibold text-gray-900 mb-1">Accès support</h4>
-                  <p class="text-xs text-gray-500">Vous avez accordé l'accès jusqu'au 31 Août 2023, 9:40 PM</p>
-                </div>
-                <label class="relative inline-flex items-center cursor-pointer">
-                  <input v-model="security.supportAccess" type="checkbox" class="sr-only peer">
                   <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
                 </label>
               </div>
@@ -299,6 +250,209 @@
                 </div>
                 <button class="px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-all text-sm font-medium">
                   Supprimer
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Microfinance Settings Section -->
+        <div v-if="activeSection === 'microfinance-settings'" class="space-y-6">
+          <div class="card">
+            <div v-if="isSectionLoading">
+              <!-- Microfinance Settings Skeleton -->
+              <div class="animate-pulse">
+                <div class="h-6 bg-gray-200 rounded w-64 mb-6"></div>
+                <div class="space-y-4">
+                  <div v-for="i in 6" :key="i">
+                    <div class="h-4 bg-gray-200 rounded w-32 mb-2"></div>
+                    <div class="h-12 bg-gray-200 rounded-xl"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div v-else class="animate-fade-in">
+              <h3 class="text-xl font-bold text-gray-900 mb-2">Paramétrage de la Microfinance</h3>
+              <p class="text-sm text-gray-500 mb-6">Configurez les informations de votre microfinance</p>
+
+              <!-- Nom de la Microfinance -->
+              <div class="mb-6">
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Nom de la Microfinance</label>
+                <input
+                  v-model="microfinanceSettings.name"
+                  type="text"
+                  class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                  placeholder="Ex: FinanceCI Microfinance"
+                />
+              </div>
+
+              <!-- Description -->
+              <div class="mb-6">
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Description de la Microfinance</label>
+                <textarea
+                  v-model="microfinanceSettings.description"
+                  rows="4"
+                  class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all resize-none"
+                  placeholder="Décrivez brièvement votre microfinance et ses services..."
+                ></textarea>
+              </div>
+
+              <!-- Spécialités -->
+              <div class="mb-6">
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Spécialités / Domaines d'investissement</label>
+                <p class="text-xs text-gray-500 mb-3">Sélectionnez les secteurs dans lesquels vous investissez</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <label
+                    v-for="specialty in availableSpecialties"
+                    :key="specialty"
+                    class="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-all"
+                  >
+                    <input
+                      type="checkbox"
+                      :value="specialty"
+                      v-model="microfinanceSettings.specialties"
+                      class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                    />
+                    <span class="text-sm text-gray-700">{{ specialty }}</span>
+                  </label>
+                  <!-- Autre option -->
+                  <div class="col-span-full">
+                    <input
+                      v-model="microfinanceSettings.otherSpecialty"
+                      type="text"
+                      class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                      placeholder="Autre spécialité (préciser)"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Conditions Requises -->
+              <div class="mb-6">
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Conditions Requises</label>
+                <p class="text-xs text-gray-500 mb-3">Conditions pour obtenir un financement chez votre microfinance</p>
+                <div class="space-y-2">
+                  <label
+                    v-for="condition in availableConditions"
+                    :key="condition"
+                    class="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-all"
+                  >
+                    <input
+                      type="checkbox"
+                      :value="condition"
+                      v-model="microfinanceSettings.requiredConditions"
+                      class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                    />
+                    <span class="text-sm text-gray-700">{{ condition }}</span>
+                  </label>
+                  <!-- Autre condition -->
+                  <input
+                    v-model="microfinanceSettings.otherCondition"
+                    type="text"
+                    class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                    placeholder="Autre condition (préciser)"
+                  />
+                </div>
+              </div>
+
+              <!-- Documents Minimum -->
+              <div class="mb-6">
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Documents Minimum à Fournir</label>
+                <p class="text-xs text-gray-500 mb-3">Documents que les PME doivent fournir</p>
+                <div class="space-y-2">
+                  <label
+                    v-for="document in availableDocuments"
+                    :key="document"
+                    class="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-all"
+                  >
+                    <input
+                      type="checkbox"
+                      :value="document"
+                      v-model="microfinanceSettings.requiredDocuments"
+                      class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                    />
+                    <span class="text-sm text-gray-700">{{ document }}</span>
+                  </label>
+                  <!-- Autre document -->
+                  <input
+                    v-model="microfinanceSettings.otherDocument"
+                    type="text"
+                    class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                    placeholder="Autre document (préciser)"
+                  />
+                </div>
+              </div>
+
+              <!-- Taux d'intérêt et Délai -->
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Taux d'Intérêt Minimum (%)</label>
+                  <input
+                    v-model.number="microfinanceSettings.minInterestRate"
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="100"
+                    class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                    placeholder="Ex: 5.5"
+                  />
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Délai Minimum de Réponse</label>
+                  <select
+                    v-model="microfinanceSettings.responseDelay"
+                    class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                  >
+                    <option value="">Sélectionner un délai</option>
+                    <option value="24h">24 heures</option>
+                    <option value="48h">48 heures</option>
+                    <option value="72h">72 heures</option>
+                    <option value="1-week">1 semaine</option>
+                    <option value="2-weeks">2 semaines</option>
+                    <option value="1-month">1 mois</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Coordonnées -->
+              <div class="border-t border-gray-200 pt-6 mb-6">
+                <h4 class="text-lg font-bold text-gray-900 mb-4">Coordonnées</h4>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Numéro Joignable</label>
+                    <input
+                      v-model="microfinanceSettings.contact.phone"
+                      type="tel"
+                      class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                      placeholder="+225 07 00 00 00 00"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Email</label>
+                    <input
+                      v-model="microfinanceSettings.contact.email"
+                      type="email"
+                      class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                      placeholder="contact@microfinance.ci"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Localisation</label>
+                  <input
+                    v-model="microfinanceSettings.contact.location"
+                    type="text"
+                    class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                    placeholder="Ex: Abidjan, Plateau"
+                  />
+                </div>
+              </div>
+
+              <div class="flex justify-end">
+                <button class="px-6 py-3 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-all font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                  Enregistrer les modifications
                 </button>
               </div>
             </div>
@@ -589,6 +743,7 @@ import { ref, computed, onMounted } from 'vue';
 
 // Icons as inline components
 const UserIcon = { template: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>' };
+const SettingsIcon = { template: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>' };
 const BellIcon = { template: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>' };
 const GlobeIcon = { template: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>' };
 const WalletIcon = { template: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>' };
@@ -611,13 +766,67 @@ const userInitials = computed(() => {
 // Security Settings
 const security = ref({
   email: 'john.doe@example.com',
-  twoFactorEnabled: true,
-  supportAccess: true
+  twoFactorEnabled: true
 });
+
+// Microfinance Settings
+const microfinanceSettings = ref({
+  name: '',
+  description: '',
+  specialties: [],
+  otherSpecialty: '',
+  requiredConditions: [],
+  otherCondition: '',
+  requiredDocuments: [],
+  otherDocument: '',
+  minInterestRate: null,
+  responseDelay: '',
+  contact: {
+    phone: '',
+    email: '',
+    location: ''
+  }
+});
+
+// Available options
+const availableSpecialties = [
+  'Agriculture',
+  'Commerce',
+  'Technologie',
+  'Industrie',
+  'Artisanat',
+  'Services',
+  'Transport',
+  'Santé',
+  'Éducation',
+  'Immobilier'
+];
+
+const availableConditions = [
+  '2 ans d\'activité minimum',
+  'Chiffre d\'affaires > 10M FCFA',
+  'Garanties personnelles ou matérielles',
+  'Documents administratifs à jour',
+  'Plan d\'affaires détaillé',
+  'Attestation fiscale',
+  'Compte bancaire professionnel'
+];
+
+const availableDocuments = [
+  'Pièce d\'identité du dirigeant',
+  'Registre de commerce',
+  'Attestation fiscale',
+  'Bilan financier',
+  'États financiers (3 derniers mois)',
+  'Business plan',
+  'Justificatif de domicile',
+  'Attestation bancaire'
+];
 
 // Menu Items
 const generalMenu = [
   { id: 'account', label: 'Compte', icon: UserIcon },
+  { id: 'microfinance-settings', label: 'Paramétrage du compte', icon: SettingsIcon },
   { id: 'notifications', label: 'Notifications', icon: BellIcon },
   { id: 'language', label: 'Langue & Région', icon: GlobeIcon }
 ];

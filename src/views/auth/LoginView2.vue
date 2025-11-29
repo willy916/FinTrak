@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router';
 import imgcover from "../../assets/img/login-cover.jpg";
 import imgcover2 from "../../assets/img/login-cover2.jpg";
 import logowf from "../../assets/img/logowf.png";
+import { authService } from '../../services/authServices';
 
 const router = useRouter();
 
@@ -83,8 +84,9 @@ const handleCheckPhone = async () => {
   }
 
   isLoading.value = true;
-
+  
   try {
+
     await new Promise(resolve => setTimeout(resolve, 1000));
 
     // SIMULATION - À remplacer par votre vrai backend
@@ -94,31 +96,9 @@ const handleCheckPhone = async () => {
     //   headers: { 'Content-Type': 'application/json' },
     //   body: JSON.stringify({ telephone: telephone.value })
     // });
-
-    // SIMULATION: +225 0123456789 = inscrit, autres = non-inscrit
-    const mockResponse = {
-      isRegistered: telephone.value.includes('0123456789'),
-      user: telephone.value.includes('0123456789') ? {
-        id: '1',
-        nom: 'Ouattara',
-        prenom: 'Wilfried',
-        role: 'pme'
-      } : null
-    };
-
-    isRegistered.value = mockResponse.isRegistered;
-
-    if (mockResponse.isRegistered) {
-      // Utilisateur inscrit → Demander le code PIN
-      successMessage.value = 'Compte trouvé ! Entrez votre code PIN.';
-      step.value = 2;
-      setTimeout(() => {
-        document.getElementById('pin-0')?.focus();
-      }, 100);
-    } else {
-      // Utilisateur non-inscrit → Envoyer OTP directement
-      await sendOTP();
-    }
+   console.log("reponse2")
+   const reponse = await authService.requestOTP(number);
+    console.log("reponse", reponse)
 
   } catch (error) {
     errorMessage.value = 'Erreur lors de la vérification. Veuillez réessayer.';
@@ -128,7 +108,7 @@ const handleCheckPhone = async () => {
 };
 
 // Fonction pour envoyer l'OTP
-const sendOTP = async () => {
+const sendOTP = async (number) => {
   try {
     // SIMULATION - À remplacer par votre vrai backend
     // await fetch('/api/auth/send-otp', {
@@ -136,6 +116,8 @@ const sendOTP = async () => {
     //   headers: { 'Content-Type': 'application/json' },
     //   body: JSON.stringify({ telephone: telephone.value })
     // });
+
+    await authService.requestOTP(number)
 
     successMessage.value = 'Code de vérification envoyé !';
     step.value = 3;
@@ -814,3 +796,5 @@ const handleBackToPin = () => {
   animation: spin 1s linear infinite;
 }
 </style>
+
+

@@ -1,6 +1,6 @@
 const API_URL = 'http://localhost:5000/api';
 
-/*export const authService = {
+export const authService = {
   async login(numero, password) {
     const response = await fetch(`${API_URL}/auth/login`, {
       method: 'POST',
@@ -32,5 +32,5 @@ const API_URL = 'http://localhost:5000/api';
     const user = localStorage.getItem('user');
     return user ? JSON.parse(user) : null;
   }
-};*/
+};
 

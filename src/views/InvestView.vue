@@ -21,19 +21,22 @@
             </svg>
           </div>
 
-          <!-- Sort Button -->
+          <!-- Filter Button -->
           <div class="relative">
             <button
-              @click="showSortMenu = !showSortMenu"
+              @click="showFilterMenu = !showFilterMenu"
               class="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
             >
               <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
               </svg>
-              <span class="text-sm font-medium text-gray-700">Trier</span>
+              <span class="text-sm font-medium text-gray-700">Filtrer</span>
+              <span v-if="activeFilter !== 'Tous'" class="ml-1 px-2 py-0.5 bg-primary-100 text-primary-700 rounded-full text-xs font-medium">
+                {{ activeFilter === 'Demandes ciblées' ? 'Ciblées' : 'Générales' }}
+              </span>
             </button>
 
-            <!-- Sort Dropdown -->
+            <!-- Filter Dropdown -->
             <transition
               enter-active-class="transition ease-out duration-100"
               enter-from-class="transform opacity-0 scale-95"
@@ -42,14 +45,23 @@
               leave-from-class="transform opacity-100 scale-100"
               leave-to-class="transform opacity-0 scale-95"
             >
-              <div v-if="showSortMenu" class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-custom-lg border border-gray-100 py-1 z-10">
+              <div v-if="showFilterMenu" class="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-custom-lg border border-gray-100 py-1 z-10">
                 <button
-                  v-for="option in sortOptions"
-                  :key="option"
-                  @click="sortBy(option)"
-                  class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  v-for="option in filterOptions"
+                  :key="option.value"
+                  @click="filterBy(option.value)"
+                  class="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 transition-colors flex items-center justify-between"
+                  :class="activeFilter === option.value ? 'bg-primary-50' : ''"
                 >
-                  {{ option }}
+                  <div>
+                    <div class="font-medium" :class="activeFilter === option.value ? 'text-primary-700' : 'text-gray-700'">
+                      {{ option.label }}
+                    </div>
+                    <div class="text-xs text-gray-500 mt-0.5">{{ option.description }}</div>
+                  </div>
+                  <svg v-if="activeFilter === option.value" class="w-5 h-5 text-primary-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                  </svg>
                 </button>
               </div>
             </transition>
@@ -58,26 +70,76 @@
       </div>
     </div>
 
+    <!-- Active Filter Display -->
+    <div v-if="activeFilter !== 'Tous'" class="mb-6 flex items-center space-x-2">
+      <div class="inline-flex items-center px-3 py-1.5 bg-primary-50 border border-primary-200 rounded-lg">
+        <svg class="w-4 h-4 text-primary-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
+        </svg>
+        <span class="text-sm font-medium text-primary-700">{{ activeFilter }}</span>
+        <button
+          @click="filterBy('Tous')"
+          class="ml-2 text-primary-600 hover:text-primary-800"
+        >
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
     <!-- Stats Cards with Skeleton -->
     <div v-if="isLoading" class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
       <SkeletonLoader type="stat" v-for="i in 4" :key="i" />
     </div>
     <div v-else class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <!-- Total Demandes -->
       <div class="card card-hover animate-slide-in-up">
         <div class="flex items-center justify-between">
           <div>
-            <p class="text-gray-600 text-sm mb-1">PME Disponibles</p>
-            <h3 class="text-2xl font-bold text-gray-900">{{ availablePMEs }}</h3>
+            <p class="text-gray-600 text-sm mb-1">Total Demandes</p>
+            <h3 class="text-2xl font-bold text-gray-900">{{ totalRequests }}</h3>
           </div>
           <div class="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center">
             <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
           </div>
         </div>
       </div>
 
+      <!-- Demandes Ciblées -->
       <div class="card card-hover animate-slide-in-up animate-delay-100">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-gray-600 text-sm mb-1">Demandes Ciblées</p>
+            <h3 class="text-2xl font-bold text-gray-900">{{ targetedRequests }}</h3>
+          </div>
+          <div class="w-12 h-12 bg-purple-50 rounded-lg flex items-center justify-center">
+            <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- Demandes Générales -->
+      <div class="card card-hover animate-slide-in-up animate-delay-200">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-gray-600 text-sm mb-1">Demandes Générales</p>
+            <h3 class="text-2xl font-bold text-gray-900">{{ generalRequests }}</h3>
+          </div>
+          <div class="w-12 h-12 bg-cyan-50 rounded-lg flex items-center justify-center">
+            <svg class="w-6 h-6 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- Montant Total -->
+      <div class="card card-hover animate-slide-in-up animate-delay-300">
         <div class="flex items-center justify-between">
           <div>
             <p class="text-gray-600 text-sm mb-1">Montant Total</p>
@@ -90,39 +152,19 @@
           </div>
         </div>
       </div>
-
-      <div class="card card-hover animate-slide-in-up animate-delay-200">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-gray-600 text-sm mb-1">Investissements</p>
-            <h3 class="text-2xl font-bold text-gray-900">{{ myInvestments }}</h3>
-          </div>
-          <div class="w-12 h-12 bg-purple-50 rounded-lg flex items-center justify-center">
-            <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-            </svg>
-          </div>
-        </div>
-      </div>
-
-      <div class="card card-hover animate-slide-in-up animate-delay-300">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-gray-600 text-sm mb-1">ROI Moyen</p>
-            <h3 class="text-2xl font-bold text-gray-900">{{ averageROI }}%</h3>
-          </div>
-          <div class="w-12 h-12 bg-orange-50 rounded-lg flex items-center justify-center">
-            <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-            </svg>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- PME Cards Grid with Skeleton -->
     <div v-if="isLoadingCards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       <SkeletonLoader type="card-with-image" v-for="i in 6" :key="i" />
+    </div>
+
+    <div v-else-if="paginatedPMEs.length === 0" class="text-center py-16">
+      <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <h3 class="text-lg font-medium text-gray-900 mb-2">Aucune PME trouvée</h3>
+      <p class="text-gray-500">Essayez de modifier vos filtres ou votre recherche</p>
     </div>
 
     <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -158,13 +200,13 @@
             </div>
             <span
               :class="[
-                'px-2 py-1 rounded-full text-xs font-medium',
-                pme.urgency === 'High' ? 'bg-red-100 text-red-700' :
-                pme.urgency === 'Medium' ? 'bg-yellow-100 text-yellow-700' :
-                'bg-green-100 text-green-700'
+                'px-3 py-1 rounded-full text-xs font-medium',
+                pme.requestType === 'targeted' 
+                  ? 'bg-purple-100 text-purple-700' 
+                  : 'bg-blue-100 text-blue-700'
               ]"
             >
-              {{ pme.urgency }}
+              {{ pme.requestType === 'targeted' ? 'Ciblée' : 'Générale' }}
             </span>
           </div>
         </div>
@@ -301,25 +343,45 @@ import PMEDetailsModal from '../components/common/PMEProfileModal.vue';
 
 const isLoading = ref(true);
 const isLoadingCards = ref(true);
-const showSortMenu = ref(false);
+const showFilterMenu = ref(false);
 const selectedPME = ref(null);
 const searchQuery = ref('');
 const currentPage = ref(1);
 const itemsPerPage = ref(6);
-const sortOptions = ['Plus récent', 'ROI le plus élevé', 'Montant croissant', 'Montant décroissant'];
+const activeFilter = ref('Tous');
 
-// Stats
-const availablePMEs = ref(24);
-const totalAmount = ref(1250000);
-const myInvestments = ref(8);
-const averageROI = ref(12.5);
+// Filter options
+const filterOptions = [
+  { 
+    value: 'Tous', 
+    label: 'Tous', 
+    description: 'Toutes les demandes' 
+  },
+  { 
+    value: 'Demandes ciblées', 
+    label: 'Demandes ciblées', 
+    description: 'PME ciblant votre microfinance' 
+  },
+  { 
+    value: 'Demandes générales', 
+    label: 'Demandes générales', 
+    description: 'Visibles par toutes les microfinances' 
+  }
+];
 
-// PME Data with images
+// Stats - Calculs dynamiques basés sur les données
+const totalRequests = computed(() => pmes.value.length);
+const targetedRequests = computed(() => pmes.value.filter(pme => pme.requestType === 'targeted').length);
+const generalRequests = computed(() => pmes.value.filter(pme => pme.requestType === 'general').length);
+const totalAmount = computed(() => pmes.value.reduce((sum, pme) => sum + pme.requestedAmount, 0));
+
+// PME Data with requestType property
 const pmes = ref([
   {
     id: 1,
     name: 'TechStart CI',
     sector: 'Technologie',
+    requestType: 'targeted', // targeted ou general
     image: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=800&h=600&fit=crop',
     description: 'Startup innovante spécialisée dans le développement de solutions mobiles pour PME africaines.',
     fullDescription: 'TechStart CI est une entreprise technologique en pleine croissance qui développe des solutions mobiles innovantes pour les petites et moyennes entreprises africaines. Nous avons déjà conquis le marché ivoirien avec plus de 500 clients actifs et cherchons à nous étendre dans la sous-région.',
@@ -346,6 +408,7 @@ const pmes = ref([
     id: 2,
     name: 'AgroBusiness Plus',
     sector: 'Agriculture',
+    requestType: 'general',
     image: 'https://images.unsplash.com/photo-1574943320219-553eb213f72d?w=800&h=600&fit=crop',
     description: 'Exploitation agricole moderne spécialisée dans la culture du cacao et production de dérivés.',
     fullDescription: 'AgroBusiness Plus transforme l\'agriculture ivoirienne en exploitant 50 hectares de cacaoyers avec des techniques modernes. Nous produisons également des dérivés du cacao (beurre, poudre) pour les marchés locaux et internationaux.',
@@ -372,6 +435,7 @@ const pmes = ref([
     id: 3,
     name: 'EcoPackaging',
     sector: 'Environnement',
+    requestType: 'targeted',
     image: 'https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?w=800&h=600&fit=crop',
     description: 'Production d\'emballages biodégradables à partir de matériaux recyclés locaux.',
     fullDescription: 'EcoPackaging révolutionne l\'industrie de l\'emballage en Côte d\'Ivoire en produisant des alternatives écologiques aux plastiques. Nous utilisons des matériaux locaux comme les feuilles de bananier et les fibres de coco.',
@@ -398,6 +462,7 @@ const pmes = ref([
     id: 4,
     name: 'Fashion Market CI',
     sector: 'Mode & Textile',
+    requestType: 'general',
     image: 'https://images.unsplash.com/photo-1688561808434-886a6dd97b8c?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=1170',
     description: 'Plateforme e-commerce pour créateurs de mode africains avec atelier de production.',
     fullDescription: 'Fashion Market CI connecte les créateurs de mode ivoiriens aux consommateurs via une plateforme e-commerce moderne. Nous gérons également un atelier de production qui aide les designers à passer du prototype à la production en série.',
@@ -424,6 +489,7 @@ const pmes = ref([
     id: 5,
     name: 'EduTech Africa',
     sector: 'Éducation',
+    requestType: 'targeted',
     image: 'https://images.unsplash.com/photo-1501504905252-473c47e087f8?w=800&h=600&fit=crop',
     description: 'Plateforme d\'apprentissage en ligne proposant des cours certifiants adaptés au marché africain.',
     fullDescription: 'EduTech Africa démocratise l\'accès à l\'éducation de qualité en Afrique. Notre plateforme propose des cours en français dans des domaines demandés : informatique, marketing digital, comptabilité, langues. Plus de 5000 étudiants actifs.',
@@ -450,6 +516,7 @@ const pmes = ref([
     id: 6,
     name: 'HealthCare Plus',
     sector: 'Santé',
+    requestType: 'general',
     image: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800&h=600&fit=crop',
     description: 'Réseau de pharmacies modernes avec service de téléconsultation médicale.',
     fullDescription: 'HealthCare Plus révolutionne l\'accès aux soins en Côte d\'Ivoire. Nous gérons 8 pharmacies modernes à Abidjan et proposons un service de téléconsultation avec des médecins qualifiés. Livraison de médicaments en moins de 2 heures.',
@@ -476,6 +543,7 @@ const pmes = ref([
     id: 7,
     name: 'Green Energy CI',
     sector: 'Énergie Renouvelable',
+    requestType: 'targeted',
     image: 'https://images.unsplash.com/photo-1509391366360-2e959784a276?w=800&h=600&fit=crop',
     description: 'Installation et maintenance de panneaux solaires pour entreprises et particuliers.',
     fullDescription: 'Green Energy CI propose des solutions d\'énergie solaire clé en main. Nous avons installé plus de 200 systèmes solaires en Côte d\'Ivoire avec un taux de satisfaction de 95%.',
@@ -502,6 +570,7 @@ const pmes = ref([
     id: 8,
     name: 'Food Delivery CI',
     sector: 'Restauration',
+    requestType: 'general',
     image: 'https://images.unsplash.com/photo-1526367790999-0150786686a2?w=800&h=600&fit=crop',
     description: 'Plateforme de livraison de repas connectant restaurants locaux et consommateurs.',
     fullDescription: 'Food Delivery CI digitalise la restauration en Côte d\'Ivoire. Plus de 150 restaurants partenaires et 10,000 utilisateurs actifs sur notre plateforme.',
@@ -528,6 +597,7 @@ const pmes = ref([
     id: 9,
     name: 'BioFarm CI',
     sector: 'Agriculture Biologique',
+    requestType: 'targeted',
     image: 'https://images.unsplash.com/photo-1464226184884-fa280b87c399?w=800&h=600&fit=crop',
     description: 'Production et distribution de légumes biologiques cultivés localement.',
     fullDescription: 'BioFarm CI promeut l\'agriculture biologique en Côte d\'Ivoire. 20 hectares de cultures certifiées bio, distribution dans 15 supermarchés premium.',
@@ -552,19 +622,37 @@ const pmes = ref([
   }
 ]);
 
+// Filtered PMEs based on search and active filter
 const filteredPMEs = computed(() => {
-  if (!searchQuery.value) return pmes.value;
-  return pmes.value.filter(pme =>
-    pme.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-    pme.sector.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-    pme.description.toLowerCase().includes(searchQuery.value.toLowerCase())
-  );
+  let filtered = pmes.value;
+
+  // Apply filter type
+  if (activeFilter.value === 'Demandes ciblées') {
+    filtered = filtered.filter(pme => pme.requestType === 'targeted');
+  } else if (activeFilter.value === 'Demandes générales') {
+    filtered = filtered.filter(pme => pme.requestType === 'general');
+  }
+  // If 'Tous', no filtering by type
+
+  // Apply search query
+  if (searchQuery.value) {
+    filtered = filtered.filter(pme =>
+      pme.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+      pme.sector.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+      pme.description.toLowerCase().includes(searchQuery.value.toLowerCase())
+    );
+  }
+
+  return filtered;
 });
 
 // Pagination computed properties
 const totalFilteredItems = computed(() => filteredPMEs.value.length);
 const totalPages = computed(() => Math.ceil(totalFilteredItems.value / itemsPerPage.value));
-const startItem = computed(() => (currentPage.value - 1) * itemsPerPage.value + 1);
+const startItem = computed(() => {
+  if (totalFilteredItems.value === 0) return 0;
+  return (currentPage.value - 1) * itemsPerPage.value + 1;
+});
 const endItem = computed(() => Math.min(currentPage.value * itemsPerPage.value, totalFilteredItems.value));
 
 const paginatedPMEs = computed(() => {
@@ -598,9 +686,16 @@ const formatCurrency = (amount) => {
   }).format(amount);
 };
 
-const sortBy = (option) => {
-  showSortMenu.value = false;
-  console.log('Sorting by:', option);
+const filterBy = (option) => {
+  showFilterMenu.value = false;
+  activeFilter.value = option;
+  currentPage.value = 1; // Reset to first page when filter changes
+  
+  // Simulate loading
+  isLoadingCards.value = true;
+  setTimeout(() => {
+    isLoadingCards.value = false;
+  }, 400);
 };
 
 const viewPMEDetails = (pme) => {
