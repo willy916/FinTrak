@@ -1,4 +1,4 @@
-# 🚀 Guide de Démarrage Rapide - WareFin MF
+# 🚀 Guide de Démarrage Rapide - Djeli MF
 
 ## Installation du Projet dans Votre Environnement Vue.js
 
@@ -6,7 +6,7 @@ Votre projet Vue.js est déjà initialisé. Voici comment intégrer les composan
 
 ### Étape 1 : Copier les Fichiers
 
-Copiez tous les fichiers de `/home/claude/waretrack-mf-frontend/` vers votre projet Vue.js existant.
+Copiez tous les fichiers de `/home/claude/djeli-mf-frontend/` vers votre projet Vue.js existant.
 
 ### Étape 2 : Installer les Dépendances
 
@@ -184,7 +184,7 @@ colors: {
   path: 'ma-page',
   name: 'MaPage',
   component: () => import('../views/MaNouvellePage.vue'),
-  meta: { title: 'Ma Page - WareFin MF' }
+  meta: { title: 'Ma Page - Djeli MF' }
 }
 ```
 

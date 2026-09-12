@@ -38,16 +38,27 @@
         </div>
       </main>
 
-      <!-- Footer (Optional) -->
+      <!-- Pied de page -->
       <footer class="border-t border-gray-200 bg-white py-4 px-6">
         <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between text-sm text-gray-600">
-          <p>© 2025 FinTrak. All rights reserved.</p>
+          <p>
+            © 2026
+            <a href="https://sites.djeli.pro/" target="_blank" rel="noopener noreferrer" class="hover:text-primary-600 transition-colors font-medium">
+              Djeli
+            </a>. Tous droits réservés.
+          </p>
           <div class="flex items-center space-x-4 mt-2 md:mt-0">
-            <a href="#" class="hover:text-primary-600 transition-colors">Privacy Policy</a>
+            <a href="https://sites.djeli.pro/confidentialite" target="_blank" rel="noopener noreferrer" class="hover:text-primary-600 transition-colors">
+              Confidentialité
+            </a>
             <span class="text-gray-300">•</span>
-            <a href="#" class="hover:text-primary-600 transition-colors">Terms of Service</a>
+            <a href="https://sites.djeli.pro/conditions" target="_blank" rel="noopener noreferrer" class="hover:text-primary-600 transition-colors">
+              Conditions d'utilisation
+            </a>
             <span class="text-gray-300">•</span>
-            <a href="#" class="hover:text-primary-600 transition-colors">Contact</a>
+            <a href="https://sites.djeli.pro/" target="_blank" rel="noopener noreferrer" class="hover:text-primary-600 transition-colors">
+              Contact
+            </a>
           </div>
         </div>
       </footer>

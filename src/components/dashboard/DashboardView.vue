@@ -1,245 +1,283 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import SkeletonLoader from '../common/SkeletonLoader.vue';
-import { useRoute } from 'vue-router';
+import StatusBadge from '../common/StatusBadge.vue';
+import AmountCompact from '../common/AmountCompact.vue';
+import { fetchPortfolio, disbursementsByMonth, upcomingSchedule, computeStats } from '@/services/portfolio';
+import { getProfile, getBankActivityTrend } from '@/services/bankPortal';
+import { extractErrorMessage } from '@/services/http';
+
+/* Icônes des cartes principales */
+import imgfinanc from '../../assets/img/Coins.png';
+import imgwallet from '../../assets/img/Wallet.png';
+import Encours from '../../assets/img/Encours.png';
+
+/**
+ * Icônes des cartes « Mes PME ».
+ * Toutes pointent sur Coins.png pour l'instant : il suffit de changer le chemin
+ * de la ligne concernée pour remplacer une icône, sans toucher au reste du code.
+ */
+import iconFinanced from '../../assets/img/Home.png';
+import iconPaidOff from '../../assets/img/Coins.png';
+import iconActive from '../../assets/img/Encours.png';
+import iconLate from '../../assets/img/encourrembourssement.png';
+
+import { formatCurrency, formatDateLong, formatPeriod, formatSector, progressBarClass } from '@/utils/format';
+
+const router = useRouter();
 
 const isLoading = ref(true);
 const isLoadingTable = ref(true);
+const errorMessage = ref('');
+
 const showPeriodMenu = ref(false);
-const selectedPeriod = ref('Ce Mois');
-const cashFlowPeriod = ref('Mois');
-const periods = ['Aujourd\'hui', 'Cette Semaine', 'Ce Mois', 'Cette Année'];
+const selectedPeriod = ref('Cette Année');
+const periods = ['Ce Mois', '3 Derniers Mois', '6 Derniers Mois', 'Cette Année'];
+const PERIOD_MONTHS = { 'Ce Mois': 1, '3 Derniers Mois': 3, '6 Derniers Mois': 6, 'Cette Année': 12 };
+
 const paymentFilter = ref('all');
 const activeActionMenu = ref(null);
 
-const cashFlowTotal = ref(342323.44);
+/* ─────────────── Données API ─────────────── */
+const profile = ref(null);
+const loans = ref([]);
 
-const PME = ref([
+/**
+ * Point de départ de la période sélectionnée, aligné sur le calendrier :
+ * « Ce Mois » démarre le 1er du mois en cours, « Cette Année » le 1er janvier.
+ * Les deux options intermédiaires sont des fenêtres glissantes de N mois,
+ * mois en cours inclus.
+ */
+function periodStartDate(period) {
+  const now = new Date();
+  if (period === 'Ce Mois') return new Date(now.getFullYear(), now.getMonth(), 1);
+  if (period === 'Cette Année') return new Date(now.getFullYear(), 0, 1);
+  const monthsBack = PERIOD_MONTHS[period] || 1;
+  return new Date(now.getFullYear(), now.getMonth() - (monthsBack - 1), 1);
+}
+
+/** Nombre de mois à demander à l'API de tendance pour couvrir la même période. */
+function periodMonthsCount(period) {
+  const now = new Date();
+  if (period === 'Ce Mois') return 1;
+  if (period === 'Cette Année') return now.getMonth() + 1;
+  return PERIOD_MONTHS[period] || 1;
+}
+
+/**
+ * Prêts démarrés depuis le début de la période sélectionnée.
+ * Source unique pour tout ce qui, sur cette page, doit réagir au sélecteur de
+ * période : cartes principales, cartes « Mes PME » et échéancier.
+ */
+const periodFilteredLoans = computed(() => {
+  const start = periodStartDate(selectedPeriod.value);
+  return loans.value.filter((l) => {
+    if (!l.startDate) return false;
+    const d = new Date(l.startDate);
+    return !Number.isNaN(d.getTime()) && d >= start;
+  });
+});
+
+/** KPI recalculés sur le sous-ensemble de prêts de la période sélectionnée. */
+const stats = computed(() => computeStats(periodFilteredLoans.value));
+
+/* ─────────────── Cartes « Mes PME » ─────────────── */
+const pmeCards = computed(() => [
   {
-    currency: 'Financées',
-    amount: 100,
-    limit: '10k',
+    key: 'financed',
+    label: 'Financées',
+    amount: stats.value.totalLoans,
+    icon: iconFinanced,
+    hintValue: stats.value.totalDisbursed,
+    hintText: null,
     status: 'Actif',
-    bgColor: 'bg-green-100',
-    iconColor: 'text-green-600'
   },
   {
-    currency: 'Remboursées',
-    amount: 50,
-    limit: '8k',
+    key: 'paidOff',
+    label: 'Remboursées',
+    amount: stats.value.paidOff,
+    icon: iconPaidOff,
+    hintValue: stats.value.totalRepaid,
+    hintText: null,
     status: 'Actif',
-    bgColor: 'bg-blue-100',
-    iconColor: 'text-blue-600'
   },
   {
-    currency: 'En cours de remboursement',
-    amount: 20,
-    limit: '10k',
+    key: 'active',
+    label: 'En cours de remboursement',
+    amount: stats.value.active,
+    icon: iconActive,
+    hintValue: stats.value.totalRemaining,
+    hintText: null,
     status: 'Actif',
-    bgColor: 'bg-yellow-100',
-    iconColor: 'text-yellow-600'
   },
   {
-    currency: 'En retard',
-    amount: 30,
-    limit: '7.5k',
-    status: 'Retard',
-    bgColor: 'bg-red-100',
-    iconColor: 'text-red-600'
+    key: 'late',
+    label: 'En retard',
+    amount: stats.value.late,
+    icon: iconLate,
+    hintValue: null,
+    hintText: `${stats.value.late} dossier(s)`,
+    status: stats.value.late > 0 ? 'Retard' : 'Actif',
+  },
+]);
+
+/* ─────────────── Graphique ─────────────── */
+/** Le sélecteur de période en haut de page pilote directement la fenêtre du graphique. */
+const chartMonths = computed(() => periodMonthsCount(selectedPeriod.value));
+
+/** Tendance agrégée renvoyée par le serveur (null tant qu'elle n'est pas chargée). */
+const trend = ref(null);
+const isLoadingChart = ref(true);
+
+/**
+ * Points du graphique.
+ * Source principale : l'agrégat serveur, qui inclut aussi les montants collectés.
+ * Repli : calcul local des décaissements à partir des dates de début de prêt,
+ * pour que le graphique reste alimenté si l'endpoint est indisponible.
+ */
+const chartData = computed(() => {
+  const points = trend.value?.points;
+  if (points?.length) {
+    return points.map((p) => ({
+      month: formatPeriod(p.period),
+      disbursed: p.disbursedAmount || 0,
+      collected: p.collectedAmount || 0,
+      count: p.newLoansCount || 0,
+    }));
   }
-]);
+  return disbursementsByMonth(loans.value, chartMonths.value).map((b) => ({
+    month: b.month,
+    disbursed: b.disbursed,
+    collected: null,
+    count: b.count,
+  }));
+});
 
-const cashFlowData = ref([
-  { month: 'Jan', cashflow: 25000, inflow: 18000 },
-  { month: 'Fév', cashflow: 30000, inflow: 22000 },
-  { month: 'Mar', cashflow: 45000, inflow: 28000 },
-  { month: 'Avr', cashflow: 35000, inflow: 25000 },
-  { month: 'Mai', cashflow: 50000, inflow: 30000 },
-  { month: 'Juin', cashflow: 38000, inflow: 27000 },
-  { month: 'Juil', cashflow: 60000, inflow: 35000 }
-]);
+const chartCurrency = computed(() => trend.value?.currency || 'XOF');
+const hasCollected = computed(() => chartData.value.some((d) => d.collected !== null));
 
-// Échéancier des Remboursements - Affichage de 5 premiers éléments seulement
-const upcomingPayments = ref([
-  {
-    id: 1,
-    pmeName: 'Fashion Market CI',
-    sector: 'Mode & Textile',
-    amount: 7500,
-    dueDate: '05 Nov, 2025',
-    paymentStatus: 'En retard',
-    daysRemaining: -5,
-    progress: 33
-  },
-  {
-    id: 2,
-    pmeName: 'BioFood CI',
-    sector: 'Alimentation',
-    amount: 6000,
-    dueDate: '12 Déc, 2025',
-    paymentStatus: 'En cours',
-    daysRemaining: 42,
-    progress: 40
-  },
-  {
-    id: 3,
-    pmeName: 'TechStart CI',
-    sector: 'Technologie',
-    amount: 7500,
-    dueDate: '15 Déc, 2025',
-    paymentStatus: 'En cours',
-    daysRemaining: 45,
-    progress: 85
-  },
-  {
-    id: 4,
-    pmeName: 'EduTech Africa',
-    sector: 'Éducation',
-    amount: 17500,
-    dueDate: '28 Déc, 2025',
-    paymentStatus: 'En cours',
-    daysRemaining: 58,
-    progress: 50
-  },
-  {
-    id: 5,
-    pmeName: 'Logistics Express',
-    sector: 'Transport',
-    amount: 13750,
-    dueDate: '08 Jan, 2026',
-    paymentStatus: 'En cours',
-    daysRemaining: 69,
-    progress: 75
+const chartMax = computed(() =>
+  Math.max(1, ...chartData.value.flatMap((d) => [d.disbursed, d.collected || 0]))
+);
+const chartTotal = computed(() => chartData.value.reduce((sum, d) => sum + d.disbursed, 0));
+const collectedTotal = computed(() => chartData.value.reduce((sum, d) => sum + (d.collected || 0), 0));
+
+function barHeight(value) {
+  return `${Math.max(value > 0 ? 4 : 0, (value / chartMax.value) * 100)}%`;
+}
+
+async function loadTrend() {
+  isLoadingChart.value = true;
+  try {
+    trend.value = await getBankActivityTrend(chartMonths.value);
+  } catch (error) {
+    // Repli sur le calcul local : le graphique reste utilisable.
+    console.warn('Tendance établissement indisponible :', error);
+    trend.value = null;
+  } finally {
+    isLoadingChart.value = false;
   }
-]);
+}
+
+watch(selectedPeriod, loadTrend);
+
+/* ─────────────── Échéancier ─────────────── */
+const schedule = computed(() => upcomingSchedule(periodFilteredLoans.value));
 
 const filteredPayments = computed(() => {
-  let filtered = upcomingPayments.value;
+  if (paymentFilter.value === 'late') return schedule.value.filter((l) => l.displayStatus === 'LATE');
+  if (paymentFilter.value === 'ongoing') return schedule.value.filter((l) => l.displayStatus === 'ACTIVE');
+  return schedule.value;
+});
 
-  if (paymentFilter.value !== 'all') {
-    if (paymentFilter.value === 'completed') {
-      filtered = filtered.filter(p => p.paymentStatus === 'Terminé');
-    } else if (paymentFilter.value === 'ongoing') {
-      filtered = filtered.filter(p => p.paymentStatus === 'En cours' || p.paymentStatus === 'À venir');
-    } else if (paymentFilter.value === 'late') {
-      filtered = filtered.filter(p => p.paymentStatus === 'En retard');
-    }
+/** Le tableau du tableau de bord n'affiche que les 5 premières lignes. */
+const visiblePayments = computed(() => filteredPayments.value.slice(0, 5));
+
+/* ─────────────── Chargement ─────────────── */
+async function loadData() {
+  isLoading.value = true;
+  isLoadingTable.value = true;
+  errorMessage.value = '';
+
+  try {
+    const portfolio = await fetchPortfolio();
+    loans.value = portfolio.loans;
+  } catch (error) {
+    errorMessage.value = extractErrorMessage(error);
+  } finally {
+    isLoading.value = false;
+    isLoadingTable.value = false;
   }
 
-  return filtered;
-});
+  // Chargements secondaires : un échec ne doit pas vider le tableau de bord.
+  loadTrend();
+
+  try {
+    profile.value = await getProfile();
+  } catch (error) {
+    console.warn('Profil indisponible :', error);
+  }
+}
 
 const selectPeriod = (period) => {
   selectedPeriod.value = period;
   showPeriodMenu.value = false;
 };
 
-const formatCurrency = (amount) => {
-  return new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: 'XOF',
-    minimumFractionDigits: 0
-  }).format(amount);
-};
-
 const changeFilter = (filter) => {
   paymentFilter.value = filter;
-  isLoadingTable.value = true;
-  
-  setTimeout(() => {
-    isLoadingTable.value = false;
-  }, 800);
 };
 
-const toggleActionMenu = (paymentId) => {
-  if (activeActionMenu.value === paymentId) {
-    activeActionMenu.value = null;
-  } else {
-    activeActionMenu.value = paymentId;
-  }
+const toggleActionMenu = (loanId) => {
+  activeActionMenu.value = activeActionMenu.value === loanId ? null : loanId;
 };
 
-const viewDetails = (payment) => {
-  alert(`Détails de ${payment.pmeName}\nMontant: ${formatCurrency(payment.amount)}\nProgression: ${payment.progress}%`);
+const goToClient = (loan) => {
   activeActionMenu.value = null;
+  router.push(`/detailpme/${loan.organizationId}`);
 };
 
-const sendReminder = (payment) => {
-  alert(`Relance envoyée à ${payment.pmeName}`);
+/** Formulation naturelle de la période, réutilisée dans les sous-titres de la page. */
+const periodCaption = computed(() => {
+  const labels = {
+    'Ce Mois': 'ce mois-ci',
+    '3 Derniers Mois': 'sur les 3 derniers mois',
+    '6 Derniers Mois': 'sur les 6 derniers mois',
+    'Cette Année': 'depuis le 1er janvier',
+  };
+  return labels[selectedPeriod.value] || '';
+});
+
+const closeMenus = () => {
   activeActionMenu.value = null;
-};
-
-const deletePayment = (payment) => {
-  if (confirm(`Êtes-vous sûr de vouloir supprimer le paiement de ${payment.pmeName} ?`)) {
-    const index = upcomingPayments.value.findIndex(p => p.id === payment.id);
-    if (index > -1) {
-      upcomingPayments.value.splice(index, 1);
-      alert(`Paiement supprimé avec succès`);
-    }
-  }
-  activeActionMenu.value = null;
-};
-
-const resetData = () => {
-  isLoading.value = true;
-  isLoadingTable.value = true;
-  
-  setTimeout(() => {
-    isLoading.value = false;
-    isLoadingTable.value = false;
-  }, 800);
-};
-
-const viewAllPayments = () => {
-  // Redirection vers la page complète des remboursements
-  alert('Redirection vers la page complète des remboursements');
-};
-
-// Fonction pour obtenir l'icône selon le type
-const getIconPath = (currency) => {
-  switch(currency) {
-    case 'Financées':
-      return 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4';
-    case 'Remboursées':
-      return 'M11.35 3.836c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m8.9-4.414c.376.023.75.05 1.124.08 1.131.094 1.976 1.057 1.976 2.192V16.5A2.25 2.25 0 0118 18.75h-2.25m-7.5-10.5H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V18.75m-7.5-10.5h6.375c.621 0 1.125.504 1.125 1.125v9.375m-8.25-3l1.5 1.5 3-3.75';
-    case 'En cours de remboursement':
-      return 'M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z';
-    case 'En retard':
-      return 'M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z';
-    default:
-      return '';
-  }
+  showPeriodMenu.value = false;
 };
 
 onMounted(() => {
-  setTimeout(() => {
-    isLoading.value = false;
-  }, 1500);
-
-  setTimeout(() => {
-    isLoadingTable.value = false;
-  }, 1500);
-
-  document.addEventListener('click', () => {
-    activeActionMenu.value = null;
-  });
+  loadData();
+  document.addEventListener('click', closeMenus);
 });
 </script>
 
 <template>
   <div class="dashboard-container">
-    <!-- Page Header -->
+    <!-- En-tête -->
     <div class="mb-8">
       <div class="flex flex-col md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 class="text-2xl md:text-3xl font-bold text-gray-900">Tableau de Bord</h1>
-          <p class="text-gray-500 mt-1">Observez toutes les données de votre microfinance.</p>
+          <h1 class="text-2xl md:text-3xl font-bold text-gray-900">
+            Bonjour<span v-if="profile?.name">, {{ profile.name }}</span>
+          </h1>
+          <p class="text-gray-500 mt-1">
+            Observez toutes les données de votre microfinance
+            <span class="text-gray-400">({{ periodCaption }})</span>.
+          </p>
         </div>
         <div class="mt-4 md:mt-0 flex items-center space-x-3">
-          <!-- Time Period Selector -->
           <div class="relative">
             <button
-              @click="showPeriodMenu = !showPeriodMenu"
+              @click.stop="showPeriodMenu = !showPeriodMenu"
               class="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
             >
               <span class="text-sm font-medium text-gray-700">{{ selectedPeriod }}</span>
@@ -248,7 +286,6 @@ onMounted(() => {
               </svg>
             </button>
 
-            <!-- Period Dropdown -->
             <transition
               enter-active-class="transition ease-out duration-100"
               enter-from-class="transform opacity-0 scale-95"
@@ -257,7 +294,11 @@ onMounted(() => {
               leave-from-class="transform opacity-100 scale-100"
               leave-to-class="transform opacity-0 scale-95"
             >
-              <div v-if="showPeriodMenu" class="absolute right-0 mt-2 w-40 bg-white rounded-lg shadow-custom-lg border border-gray-100 py-1 z-10">
+              <div
+                v-if="showPeriodMenu"
+                class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-custom-lg border border-gray-100 py-1 z-10"
+                @click.stop
+              >
                 <button
                   v-for="period in periods"
                   :key="period"
@@ -271,14 +312,18 @@ onMounted(() => {
             </transition>
           </div>
 
-          <!-- Reset Button -->
-          <button 
-            @click="resetData"
-            class="flex items-center space-x-2 px-4 py-2 text-primary-600 bg-white border border-primary-200 rounded-lg hover:bg-primary-50 transition-colors"
+          <button
+            @click="loadData"
+            :disabled="isLoading"
+            class="flex items-center space-x-2 px-4 py-2 text-primary-600 bg-white border border-primary-200 rounded-lg hover:bg-primary-50 transition-colors disabled:opacity-60"
           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            <svg class="w-4 h-4" :class="{ 'animate-spin': isLoading }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+              />
             </svg>
             <span class="text-sm font-medium">Actualiser</span>
           </button>
@@ -286,7 +331,18 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Main Stats Cards -->
+    <!-- Erreur -->
+    <div v-if="errorMessage" class="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm flex items-start">
+      <svg class="h-5 w-5 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <div>
+        <p class="font-medium">Impossible de charger le portefeuille</p>
+        <p class="mt-0.5">{{ errorMessage }}</p>
+      </div>
+    </div>
+
+    <!-- Cartes principales -->
     <div v-if="isLoading">
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         <SkeletonLoader type="stat" v-for="i in 3" :key="i" />
@@ -294,36 +350,25 @@ onMounted(() => {
     </div>
 
     <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-      <!-- Balance Card -->
+      <!-- Financement total -->
       <div class="card bg-gradient-to-br from-primary-500 to-primary-600 text-white card-hover animate-slide-in-up">
         <div class="flex items-start justify-between mb-4">
           <div class="flex items-center space-x-3">
-            <div class="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
-              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                      d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
+            <div class="w-12 h-12 bg-black rounded-lg flex items-center justify-center backdrop-blur-sm">
+              <img :src="imgwallet" alt="" />
             </div>
             <div>
               <p class="text-white/80 text-sm">Financement Total</p>
-              <p class="text-xs text-white/60">Vue d'ensemble des fonds</p>
+              <p class="text-xs text-white/60">Montant décaissé sur {{ stats.totalLoans }} prêt(s)</p>
             </div>
           </div>
-          <button class="text-white hover:bg-white/10 p-2 rounded-lg transition-colors">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-            </svg>
-          </button>
         </div>
-        
+
         <div class="mb-4">
-          <div class="flex items-end space-x-2">
-            <h2 class="text-4xl font-bold">20 520 320 F</h2>
-            <span class="flex items-center space-x-1 text-white/90 bg-white/20 px-2 py-1 rounded-full text-xs font-medium mb-1">
-              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
-              </svg>
-              <span>+1.5%</span>
+          <div class="flex items-end space-x-2 flex-wrap">
+            <AmountCompact tag="h2" class="text-3xl xl:text-4xl font-bold break-words" :value="stats.totalDisbursed" />
+            <span class="flex items-center space-x-1 text-white/90 bg-black px-2 py-1 rounded-full text-xs font-medium mb-1">
+              <span>{{ stats.uniqueClients }} PME</span>
             </span>
           </div>
         </div>
@@ -336,36 +381,28 @@ onMounted(() => {
         </router-link>
       </div>
 
-      <!-- Chiffre d'Affaires -->
+      <!-- Montant remboursé -->
       <div class="card card-hover animate-slide-in-up animate-delay-100">
         <div class="flex items-start justify-between mb-4">
           <div class="flex items-center space-x-3">
-            <div class="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center">
-              <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                      d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
+            <div class="w-12 h-12 bg-black rounded-lg flex items-center justify-center">
+              <img :src="imgfinanc" alt="" />
             </div>
             <div>
-              <p class="text-gray-600 text-sm">Chiffre d'Affaires</p>
-              <p class="text-xs text-gray-400">Financements + Intérêts</p>
+              <p class="text-gray-600 text-sm">Montant Remboursé</p>
+              <p class="text-xs text-gray-400">Capital récupéré</p>
             </div>
           </div>
-          <button class="text-gray-400 hover:bg-gray-50 p-2 rounded-lg transition-colors">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-            </svg>
-          </button>
         </div>
-        
+
         <div class="mb-4">
-          <div class="flex items-end space-x-2">
-            <h2 class="text-3xl font-bold text-gray-900">15 800 450 F</h2>
+          <div class="flex items-end space-x-2 flex-wrap">
+            <AmountCompact tag="h2" class="text-2xl xl:text-3xl font-bold text-gray-900 break-words" :value="stats.totalRepaid" />
             <span class="flex items-center space-x-1 text-green-600 bg-green-50 px-2 py-1 rounded-full text-xs font-medium mb-1">
               <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
               </svg>
-              <span>+3.2%</span>
+              <span>{{ stats.recoveryRate }}%</span>
             </span>
           </div>
         </div>
@@ -378,42 +415,34 @@ onMounted(() => {
         </router-link>
       </div>
 
-      <!-- Bénéfices -->
+      <!-- Encours -->
       <div class="card card-hover animate-slide-in-up animate-delay-200">
         <div class="flex items-start justify-between mb-4">
           <div class="flex items-center space-x-3">
-            <div class="w-12 h-12 bg-purple-50 rounded-lg flex items-center justify-center">
-              <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                      d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+            <div class="w-12 h-12 bg-black rounded-lg flex items-center justify-center">
+              <img :src="Encours" alt="" />
             </div>
             <div>
-              <p class="text-gray-600 text-sm">Bénéfices</p>
-              <p class="text-xs text-gray-400">Taux d'intérêt total</p>
+              <p class="text-gray-600 text-sm">Encours</p>
+              <p class="text-xs text-gray-400">Restant dû — prêts {{ periodCaption }}</p>
             </div>
           </div>
-          <button class="text-gray-400 hover:bg-gray-50 p-2 rounded-lg transition-colors">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-            </svg>
-          </button>
         </div>
-        
+
         <div class="mb-4">
-          <div class="flex items-end space-x-2">
-            <h2 class="text-3xl font-bold text-gray-900">50 120 780 F</h2>
-            <span class="flex items-center space-x-1 text-green-600 bg-green-50 px-2 py-1 rounded-full text-xs font-medium mb-1">
-              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
-              </svg>
-              <span>+4.7%</span>
+          <div class="flex items-end space-x-2 flex-wrap">
+            <AmountCompact tag="h2" class="text-2xl xl:text-3xl font-bold text-gray-900 break-words" :value="stats.totalRemaining" />
+            <span
+              v-if="stats.late > 0"
+              class="flex items-center space-x-1 text-red-600 bg-red-50 px-2 py-1 rounded-full text-xs font-medium mb-1"
+            >
+              <span>{{ stats.late }} en retard</span>
             </span>
           </div>
         </div>
 
-        <router-link to="/wallet" class="flex items-center space-x-2 text-primary-600 hover:underline">
-          <span class="text-sm font-medium">Analyser les performances</span>
+        <router-link to="/gestionpme" class="flex items-center space-x-2 text-primary-600 hover:underline">
+          <span class="text-sm font-medium">Analyser le portefeuille</span>
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
           </svg>
@@ -421,16 +450,18 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Wallet and Cash Flow Section -->
+    <!-- Mes PME + Graphique -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-      <!-- My Wallet -->
       <div class="card animate-slide-in-up animate-delay-300">
         <div class="flex items-center justify-between mb-6">
           <div>
             <h3 class="text-lg font-semibold text-gray-900">Mes PME</h3>
-            <p class="text-sm text-gray-500">Statistiques des PME</p>
+            <p class="text-sm text-gray-500">Prêts démarrés {{ periodCaption }}</p>
           </div>
-          <router-link to="/gestionpme" class="flex items-center space-x-2 text-primary-600 hover:bg-primary-50 px-3 py-2 rounded-lg transition-colors">
+          <router-link
+            to="/gestionpme"
+            class="flex items-center space-x-2 text-primary-600 hover:bg-primary-50 px-3 py-2 rounded-lg transition-colors"
+          >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
             </svg>
@@ -443,91 +474,117 @@ onMounted(() => {
         </div>
 
         <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <!-- Currency Cards -->
-          <div v-for="wallet in PME" :key="wallet.currency" 
-               class="p-4 border border-gray-200 rounded-lg hover:border-primary-300 hover:shadow-md transition-all group">
+          <div
+            v-for="card in pmeCards"
+            :key="card.key"
+            class="p-4 border border-gray-200 rounded-lg hover:border-primary-300 hover:shadow-md transition-all group"
+          >
             <div class="flex items-center justify-between mb-3">
               <div class="flex items-center space-x-2">
-                <div :class="['w-10 h-10 rounded-xl flex items-center justify-center', wallet.bgColor]">
-                  <svg :class="['w-6 h-6', wallet.iconColor]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" :d="getIconPath(wallet.currency)" />
-                  </svg>
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center bg-black flex-shrink-0">
+                  <img :src="card.icon" :alt="card.label" />
                 </div>
-                <span class="font-medium text-gray-900 text-sm">{{ wallet.currency }}</span>
+                <span class="font-medium text-gray-900 text-sm">{{ card.label }}</span>
               </div>
-              <button class="text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-all">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                </svg>
-              </button>
             </div>
-            
+
             <div class="mb-2">
-              <p class="text-2xl font-bold text-gray-900">{{ wallet.amount }}</p>
+              <p class="text-2xl font-bold text-gray-900">{{ card.amount }}</p>
             </div>
-            
-            <div class="flex items-center justify-between">
-              <p class="text-xs text-gray-500">Total des PME</p>
-              <span :class="[
-                'text-xs font-medium px-2 py-1 rounded-full',
-                wallet.status === 'Actif' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
-              ]">
-                {{ wallet.status }}
+
+            <div class="flex items-center justify-between gap-2">
+              <p class="text-xs text-gray-500 truncate">
+                <AmountCompact v-if="card.hintValue !== null" :value="card.hintValue" />
+                <template v-else>{{ card.hintText }}</template>
+              </p>
+              <span
+                :class="[
+                  'text-xs font-medium px-2 py-1 rounded-full whitespace-nowrap',
+                  card.status === 'Actif' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
+                ]"
+              >
+                {{ card.status }}
               </span>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Cash Flow Chart -->
+      <!-- Graphique décaissements -->
       <div class="card animate-slide-in-up animate-delay-400">
-        <div class="flex items-center justify-between mb-6">
-          <h3 class="text-lg font-semibold text-gray-900">Statistiques</h3>
-          <div class="flex items-center space-x-2">
-            <button
-              v-for="period in ['Mois', 'Année']"
-              :key="period"
-              @click="cashFlowPeriod = period"
-              :class="[
-                'px-3 py-1.5 text-sm font-medium rounded-lg transition-colors',
-                cashFlowPeriod === period
-                  ? 'bg-primary-600 text-white'
-                  : 'text-gray-600 hover:bg-gray-100'
-              ]"
-            >
-              {{ period }}
-            </button>
+        <div class="flex items-center justify-between mb-6 gap-4 flex-wrap">
+          <div>
+            <h3 class="text-lg font-semibold text-gray-900">Activité du portefeuille</h3>
+            <p class="text-sm text-gray-500">Décaissements et encaissements {{ periodCaption }}</p>
           </div>
         </div>
 
-        <div v-if="isLoading">
+        <div v-if="isLoading || isLoadingChart">
           <SkeletonLoader type="chart" />
         </div>
 
         <div v-else>
-          <div class="mb-4">
-            <p class="text-3xl font-bold text-gray-900">{{ cashFlowTotal.toLocaleString() }} F</p>
+          <div class="mb-4 flex items-end justify-between gap-4 flex-wrap">
+            <div>
+              <p class="text-xs text-gray-500 mb-0.5">Décaissé sur la période</p>
+              <AmountCompact
+                tag="p"
+                class="text-2xl xl:text-3xl font-bold text-gray-900 break-words"
+                :value="chartTotal"
+                :currency="chartCurrency"
+              />
+            </div>
+
+            <div v-if="hasCollected" class="flex items-center gap-4 text-xs text-gray-600">
+              <span class="flex items-center gap-1.5">
+                <span class="w-2.5 h-2.5 rounded-full bg-primary-500"></span> Décaissé
+              </span>
+              <span class="flex items-center gap-1.5">
+                <span class="w-2.5 h-2.5 rounded-full bg-blue-400"></span>
+                Encaissé <AmountCompact :value="collectedTotal" :currency="chartCurrency" />
+              </span>
+            </div>
           </div>
-          
-          <!-- Simple Bar Chart -->
-          <div class="h-64 flex items-end justify-between space-x-2">
-            <div v-for="(data, index) in cashFlowData" :key="index" class="flex-1 flex flex-col items-center group">
+
+          <div v-if="chartMax <= 1" class="h-64 flex flex-col items-center justify-center text-center">
+            <svg class="w-12 h-12 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="1.5"
+                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+              />
+            </svg>
+            <p class="text-sm text-gray-500">Aucune activité sur la période</p>
+          </div>
+
+          <div v-else class="h-64 flex items-end justify-between space-x-2">
+            <div v-for="(data, index) in chartData" :key="index" class="flex-1 flex flex-col items-center group">
               <div class="w-full relative">
-                <!-- Tooltip on hover -->
-                <div class="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap pointer-events-none z-10">
+                <div
+                  class="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap pointer-events-none z-10"
+                >
                   <div class="font-medium">{{ data.month }}</div>
-                  <div class="text-green-400">Entrées: {{ data.cashflow.toLocaleString() }} F</div>
-                  <div class="text-red-400">Sorties: {{ data.inflow.toLocaleString() }} F</div>
+                  <div class="text-primary-400">Décaissé : {{ formatCurrency(data.disbursed, chartCurrency) }}</div>
+                  <div v-if="data.collected !== null" class="text-blue-300">
+                    Encaissé : {{ formatCurrency(data.collected, chartCurrency) }}
+                  </div>
+                  <div class="text-gray-300">{{ data.count }} nouveau(x) prêt(s)</div>
                   <div class="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-full">
                     <div class="border-4 border-transparent border-t-gray-900"></div>
                   </div>
                 </div>
 
-                <!-- Bar -->
-                <div class="relative h-48">
-                  <div class="absolute bottom-0 w-full rounded-t-lg bg-gradient-to-t from-primary-500 to-primary-400 transition-all duration-300 group-hover:from-primary-600 group-hover:to-primary-500"
-                       :style="`height: ${(data.cashflow / Math.max(...cashFlowData.map(d => d.cashflow))) * 100}%`">
-                  </div>
+                <div class="relative h-48 flex items-end gap-1">
+                  <div
+                    class="flex-1 rounded-t-lg bg-gradient-to-t from-primary-500 to-primary-400 transition-all duration-300 group-hover:from-primary-600 group-hover:to-primary-500"
+                    :style="{ height: barHeight(data.disbursed) }"
+                  ></div>
+                  <div
+                    v-if="data.collected !== null"
+                    class="flex-1 rounded-t-lg bg-gradient-to-t from-blue-500 to-blue-400 transition-all duration-300"
+                    :style="{ height: barHeight(data.collected) }"
+                  ></div>
                 </div>
               </div>
               <p class="text-xs text-gray-500 mt-2">{{ data.month }}</p>
@@ -537,130 +594,158 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Échéancier des Remboursements -->
+    <!-- Échéancier -->
     <div class="card animate-slide-in-up animate-delay-500">
       <div class="mb-6">
         <div class="flex flex-col md:flex-row md:items-center md:justify-between">
           <div class="mb-4 md:mb-0">
             <h3 class="text-lg font-bold text-gray-900">Échéancier des Remboursements</h3>
-            <p class="text-sm text-gray-500 mt-1">Prochains paiements attendus</p>
+            <p class="text-sm text-gray-500 mt-1">
+              Prochains paiements attendus — prêts démarrés {{ periodCaption }}
+            </p>
           </div>
-          
-          <!-- Voir Plus Button -->
-          <router-link to="/gestionpme"
-            
-            class="flex items-center space-x-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-            </svg>
-            <span class="text-sm font-medium">Voir Plus</span>
-          </router-link>
+
+          <div class="flex items-center space-x-2 flex-wrap gap-2">
+            <button
+              v-for="opt in [
+                { key: 'all', label: 'Tous', active: 'bg-primary-600 text-white' },
+                { key: 'ongoing', label: 'En cours', active: 'bg-blue-600 text-white' },
+                { key: 'late', label: 'En retard', active: 'bg-red-600 text-white' }
+              ]"
+              :key="opt.key"
+              @click="changeFilter(opt.key)"
+              :class="[
+                'px-3 py-1.5 text-xs font-medium rounded-lg transition-colors',
+                paymentFilter === opt.key ? opt.active : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              ]"
+            >
+              {{ opt.label }}
+            </button>
+
+            <router-link
+              to="/gestionpme"
+              class="flex items-center space-x-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                />
+              </svg>
+              <span class="text-sm font-medium">Voir Plus</span>
+            </router-link>
+          </div>
         </div>
       </div>
 
       <div v-if="isLoadingTable">
         <SkeletonLoader type="table" :rows="5" />
       </div>
+
+      <div v-else-if="visiblePayments.length === 0" class="text-center py-12">
+        <svg class="w-14 h-14 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="1.5"
+            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+          />
+        </svg>
+        <h3 class="text-base font-medium text-gray-900 mb-1">Aucune échéance à afficher</h3>
+        <p class="text-sm text-gray-500">Les prêts décaissés apparaîtront ici avec leurs prochaines échéances.</p>
+      </div>
+
       <div v-else class="overflow-x-auto">
         <table class="w-full">
           <thead>
             <tr class="border-b border-gray-200">
               <th class="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">PME</th>
-              <th class="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Montant Échéance</th>
+              <th class="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Montant Prêté</th>
+              <th class="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Restant Dû</th>
               <th class="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Date Échéance</th>
-              <th class="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Progression</th>
+              <th
+                class="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-help"
+                title="Part du capital emprunté déjà remboursée (capital remboursé ÷ capital prêté)"
+              >
+                Progression <span class="normal-case font-normal text-gray-400">ⓘ</span>
+              </th>
               <th class="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Statut</th>
               <th class="text-center py-3 px-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Jours Restants</th>
               <th class="text-center py-3 px-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Action</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-100">
-            <tr v-for="payment in filteredPayments" :key="payment.id" class="hover:bg-gray-50 transition-colors">
+            <tr v-for="loan in visiblePayments" :key="loan.loanId" class="hover:bg-gray-50 transition-colors">
               <td class="py-4 px-4">
                 <div class="flex items-center space-x-3">
-                  <div class="w-10 h-10 bg-gradient-to-br from-primary-400 to-primary-600 rounded-lg flex items-center justify-center text-white font-bold">
-                    {{ payment.pmeName.charAt(0) }}
+                  <div
+                    class="w-10 h-10 bg-gradient-to-br from-primary-400 to-primary-600 rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0"
+                  >
+                    {{ loan.organizationName.charAt(0).toUpperCase() }}
                   </div>
-                  <div>
-                    <p class="text-sm font-medium text-gray-900">{{ payment.pmeName }}</p>
-                    <p class="text-xs text-gray-500">{{ payment.sector }}</p>
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium text-gray-900 truncate">{{ loan.organizationName }}</p>
+                    <p class="text-xs text-gray-500">{{ formatSector(loan.sector) }}</p>
                   </div>
                 </div>
               </td>
               <td class="py-4 px-4">
-                <span class="text-sm font-semibold text-gray-900">{{ formatCurrency(payment.amount) }}</span>
+                <span class="text-sm font-semibold text-gray-900 whitespace-nowrap">{{ formatCurrency(loan.principalAmount) }}</span>
               </td>
               <td class="py-4 px-4">
-                <span class="text-sm text-gray-600">{{ payment.dueDate }}</span>
+                <span class="text-sm text-gray-700 whitespace-nowrap">{{ formatCurrency(loan.remainingAmount) }}</span>
+              </td>
+              <td class="py-4 px-4">
+                <span class="text-sm text-gray-600 whitespace-nowrap">{{ formatDateLong(loan.nextPaymentDate) }}</span>
               </td>
               <td class="py-4 px-4">
                 <div class="w-32">
                   <div class="flex items-center justify-between mb-1">
-                    <span class="text-xs font-medium text-gray-600">{{ payment.progress }}%</span>
+                    <span class="text-xs font-medium text-gray-600">{{ loan.progress }}%</span>
                   </div>
                   <div class="w-full bg-gray-200 rounded-full h-2">
                     <div
-                      :class="[
-                        'h-2 rounded-full transition-all duration-500',
-                        payment.progress >= 75 ? 'bg-gradient-to-r from-green-500 to-green-600' :
-                        payment.progress >= 50 ? 'bg-gradient-to-r from-blue-500 to-blue-600' :
-                        payment.progress >= 25 ? 'bg-gradient-to-r from-yellow-500 to-yellow-600' :
-                        'bg-gradient-to-r from-red-500 to-red-600'
-                      ]"
-                      :style="{ width: payment.progress + '%' }"
+                      class="h-2 rounded-full transition-all duration-500"
+                      :class="progressBarClass(loan.progress)"
+                      :style="{ width: loan.progress + '%' }"
                     ></div>
                   </div>
                 </div>
               </td>
               <td class="py-4 px-4">
-                <span
-                  :class="[
-                    'inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium',
-                    payment.paymentStatus === 'Terminé' ? 'bg-green-100 text-green-700' :
-                    payment.paymentStatus === 'À venir' || payment.paymentStatus === 'En cours' ? 'bg-blue-100 text-blue-700' :
-                    payment.paymentStatus === 'En retard' ? 'bg-red-100 text-red-700' :
-                    'bg-gray-100 text-gray-700'
-                  ]"
-                >
-                  <span
-                    :class="[
-                      'w-1.5 h-1.5 mr-1.5 rounded-full',
-                      payment.paymentStatus === 'Terminé' ? 'bg-green-600' :
-                      payment.paymentStatus === 'À venir' || payment.paymentStatus === 'En cours' ? 'bg-blue-600' :
-                      payment.paymentStatus === 'En retard' ? 'bg-red-600' :
-                      'bg-gray-600'
-                    ]"
-                  ></span>
-                  {{ payment.paymentStatus }}
-                </span>
+                <StatusBadge :status="loan.displayStatus" />
               </td>
               <td class="py-4 px-4 text-center">
                 <span
+                  v-if="loan.daysRemaining !== null"
                   :class="[
-                    'text-sm font-medium',
-                    payment.daysRemaining < 0 ? 'text-red-600' :
-                    payment.daysRemaining <= 7 ? 'text-orange-600' :
-                    'text-gray-900'
+                    'text-sm font-medium whitespace-nowrap',
+                    loan.daysRemaining < 0 ? 'text-red-600' : loan.daysRemaining <= 7 ? 'text-orange-600' : 'text-gray-900'
                   ]"
                 >
-                  {{ payment.daysRemaining < 0 ? 'Retard de ' + Math.abs(payment.daysRemaining) : payment.daysRemaining }} jours
+                  {{ loan.daysRemaining < 0 ? `Retard de ${Math.abs(loan.daysRemaining)}` : loan.daysRemaining }} jours
                 </span>
+                <span v-else class="text-sm text-gray-400">—</span>
               </td>
               <td class="py-4 px-4 text-center">
                 <div class="relative inline-block">
                   <button
-                    v-if="payment.paymentStatus !== 'Terminé'"
-                    @click.stop="toggleActionMenu(payment.id)"
+                    @click.stop="toggleActionMenu(loan.loanId)"
                     class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                   >
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+                      />
                     </svg>
                   </button>
 
-                  <!-- Dropdown Menu -->
                   <transition
                     enter-active-class="transition ease-out duration-100"
                     enter-from-class="transform opacity-0 scale-95"
@@ -670,42 +755,28 @@ onMounted(() => {
                     leave-to-class="transform opacity-0 scale-95"
                   >
                     <div
-                      v-if="activeActionMenu === payment.id"
-                      class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10"
+                      v-if="activeActionMenu === loan.loanId"
+                      class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20"
                       @click.stop
                     >
-                      <router-link to="/detailpme"
+                      <button
+                        @click="goToClient(loan)"
                         class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center space-x-2"
                       >
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                          />
                         </svg>
-                        <span>Voir plus</span>
-                      </router-link>
-                      <button
-                        @click="sendReminder(payment)"
-                        class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center space-x-2"
-                      >
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                        </svg>
-                        <span>Relancer</span>
-                      </button>
-                      <div class="border-t border-gray-100 my-1"></div>
-                      <button
-                        @click="deletePayment(payment)"
-                        class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center space-x-2"
-                      >
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                        <span>Supprimer</span>
+                        <span>Voir le dossier</span>
                       </button>
                     </div>
                   </transition>
                 </div>
-                <span v-if="payment.paymentStatus === 'Terminé'" class="text-xs text-gray-400">-</span>
               </td>
             </tr>
           </tbody>

@@ -27,9 +27,7 @@
         :style="{ animationDelay: action.delay }"
       >
         <div :class="['w-12 h-12 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform', action.bgColor]">
-          <svg :class="['w-6 h-6', action.iconColor]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="action.iconPath" />
-          </svg>
+            <img :src="action.icon" alt="" />
         </div>
         <h3 class="text-sm font-bold text-gray-900 mb-1">{{ action.title }}</h3>
         <p class="text-xs text-gray-500">{{ action.description }}</p>
@@ -149,8 +147,15 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import { getSession } from '@/services/authService';
 
-const isLoading = ref(true);
+import email from '../assets/img/email.png';
+import whatsapp from '../assets/img/whatsapp.png';
+import Locations from '../assets/img/Locations.png';
+import Share from '../assets/img/Share.png';
+
+
+const isLoading = ref(false);
 const isSubmitting = ref(false);
 const openFaq = ref(null);
 
@@ -166,37 +171,33 @@ const quickActions = ref([
   {
     id: 'whatsapp',
     title: 'WhatsApp',
-    description: '+225 05 75 13 25 86',
-    bgColor: 'bg-green-100',
-    iconColor: 'text-green-600',
-    iconPath: 'M8 12h.01M12 12h.01M16 12h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+    description: '+225 05 08 29 49 39',
+    bgColor: 'bg-black',
+    icon: email,
     delay: '0ms'
   },
   {
     id: 'email',
     title: 'Email',
-    description: 'contact@eso-dev.com',
-    bgColor: 'bg-blue-100',
-    iconColor: 'text-blue-600',
-    iconPath: 'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z',
+    description: 'contact@djeli.pro',
+    bgColor: 'bg-black',
+    icon: whatsapp,
     delay: '100ms'
   },
   {
-    id: 'faq',
-    title: 'FAQ',
-    description: 'Questions fréquentes',
-    bgColor: 'bg-purple-100',
-    iconColor: 'text-purple-600',
-    iconPath: 'M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+    id: '#',
+    title: 'Lieu',
+    description: 'Abidjan Cocody Angré',
+    bgColor: 'bg-black',
+    icon: Locations,
     delay: '200ms'
   },
   {
     id: 'website',
     title: 'Site Web',
     description: 'Visiter notre site',
-    bgColor: 'bg-orange-100',
-    iconColor: 'text-orange-600',
-    iconPath: 'M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9',
+    bgColor: 'bg-black',
+    icon: Share,
     delay: '300ms'
   }
 ]);
@@ -233,24 +234,39 @@ const faqs = ref([
 // Methods
 const handleQuickAction = (actionId) => {
   if (actionId === 'whatsapp') {
-    window.open('https://wa.me/2250575132586', '_blank');
+    window.open('https://wa.me/2250508294939', '_blank');
   } else if (actionId === 'email') {
-    window.location.href = 'mailto:contact@eso-dev.com';
+    window.location.href = 'mailto:contact@djeli.pro';
   } else if (actionId === 'faq') {
     window.open('https://sites.waretrack.online/#faq', '_blank');
   } else if (actionId === 'website') {
-    window.open('https://sites.waretrack.online/', '_blank');
+    window.open('https://sites.djeli.pro/', '_blank');
   }
 };
 
+/**
+ * L'API ne fournit pas encore d'endpoint de ticketing : le formulaire ouvre
+ * le client mail de l'utilisateur avec le contexte de session pré-rempli.
+ */
 const submitTicket = () => {
   isSubmitting.value = true;
-  
-  setTimeout(() => {
-    isSubmitting.value = false;
-    alert('Votre message a été envoyé avec succès !');
-    contactForm.value = { subject: '', category: '', message: '' };
-  }, 2000);
+
+  const session = getSession();
+  const contexte = [
+    `Établissement : ${session?.organizationName || '—'}`,
+    `Utilisateur : ${session?.email || '—'}`,
+    `Catégorie : ${contactForm.value.category || '—'}`,
+    '',
+    contactForm.value.message,
+  ].join('\n');
+
+  const sujet = encodeURIComponent(`[Djeli MF] ${contactForm.value.subject}`);
+  const corps = encodeURIComponent(contexte);
+
+  window.location.href = `mailto:contact@djeli.pro?subject=${sujet}&body=${corps}`;
+
+  isSubmitting.value = false;
+  contactForm.value = { subject: '', category: '', message: '' };
 };
 
 const toggleFaq = (faqId) => {
@@ -258,9 +274,7 @@ const toggleFaq = (faqId) => {
 };
 
 onMounted(() => {
-  setTimeout(() => {
-    isLoading.value = false;
-  }, 1200);
+  isLoading.value = false;
 });
 </script>
 

@@ -1,4 +1,4 @@
-# 📊 Statistiques du Projet WareFin MF
+# 📊 Statistiques du Projet Djeli MF
 
 ## 📁 Fichiers Créés
 
@@ -378,7 +378,7 @@
 
 ---
 
-**📊 Projet WareFin MF - Statistiques complètes**
+**📊 Projet Djeli MF - Statistiques complètes**
 
 *Dernière mise à jour : Octobre 2025*
 *Version : 1.0.0*

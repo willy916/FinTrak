@@ -1,4 +1,4 @@
-# 📦 Installation de WareFin MF
+# 📦 Installation de Djeli MF
 
 ## Option 1 : Démarrage Rapide (Nouveau Projet)
 
@@ -6,8 +6,8 @@
 
 ```bash
 # Extraire l'archive ZIP
-unzip waretrack-mf-frontend.zip
-cd waretrack-mf-frontend
+unzip djeli-mf-frontend.zip
+cd djeli-mf-frontend
 ```
 
 ### Étape 2 : Installer les Dépendances
@@ -84,7 +84,7 @@ npm --version    # Devrait afficher 9.x ou supérieur
 ## 📝 Structure Après Installation
 
 ```
-waretrack-mf-frontend/
+djeli-mf-frontend/
 ├── node_modules/          # Dépendances (créé après npm install)
 ├── public/                # Fichiers statiques
 ├── src/
@@ -299,7 +299,7 @@ Consultez ces fichiers pour plus d'informations :
 
 ## 🎉 Félicitations !
 
-Votre application WareFin MF est maintenant installée et prête à l'emploi !
+Votre application Djeli MF est maintenant installée et prête à l'emploi !
 
 **Prochaines étapes :**
 1. Explorer l'interface

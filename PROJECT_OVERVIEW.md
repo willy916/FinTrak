@@ -1,11 +1,11 @@
-# 🏦 WareFin MF - Projet Frontend Vue.js
+# 🏦 Djeli MF - Projet Frontend Vue.js
 ## Plateforme de Gestion Financière pour Microfinance
 
 ---
 
 ## 📋 Résumé Exécutif
 
-**WareFin MF** est une application web moderne et professionnelle développée en Vue.js 3, conçue pour permettre aux institutions de microfinance de gérer efficacement leurs PME financées. L'interface offre une expérience utilisateur exceptionnelle avec des animations fluides, un design responsive et des composants réutilisables.
+**Djeli MF** est une application web moderne et professionnelle développée en Vue.js 3, conçue pour permettre aux institutions de microfinance de gérer efficacement leurs PME financées. L'interface offre une expérience utilisateur exceptionnelle avec des animations fluides, un design responsive et des composants réutilisables.
 
 ---
 
@@ -120,7 +120,7 @@ Animation shimmer personnalisée pour un effet de chargement professionnel.
 ### Structure des Fichiers
 
 ```
-waretrack-mf-frontend/
+djeli-mf-frontend/
 ├── src/
 │   ├── assets/styles/
 │   │   └── main.css                    # Styles globaux + animations
@@ -255,7 +255,7 @@ custom-xl : 0 12px 32px rgba(0, 0, 0, 0.1)
 
 ```bash
 # Naviguer vers le projet
-cd waretrack-mf-frontend
+cd djeli-mf-frontend
 
 # Installer les dépendances
 npm install
@@ -499,7 +499,7 @@ Dans `src/assets/styles/main.css` :
 
 ## 👥 Équipe et Crédits
 
-**Développé par :** Équipe WareFin MF  
+**Développé par :** Équipe Djeli MF  
 **Framework :** Vue.js 3 + Tailwind CSS  
 **Design inspiré de :** Meilleures pratiques SaaS modernes  
 **Version :** 1.0.0  
@@ -516,7 +516,7 @@ Pour toute question ou assistance :
 
 ---
 
-**🎊 Félicitations ! Votre application WareFin MF est prête à être utilisée ! 🎊**
+**🎊 Félicitations ! Votre application Djeli MF est prête à être utilisée ! 🎊**
 
 L'interface est moderne, professionnelle, responsive et prête pour l'intégration avec votre backend. Tous les composants sont réutilisables et le code est maintenable.
 

@@ -7,7 +7,7 @@ import { onMounted } from 'vue';
 
 onMounted(() => {
   // Initialize app
-  console.log('FinTrak MF App Initialized');
+  console.log('Djeli MF App Initialized');
 });
 </script>
 
